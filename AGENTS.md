@@ -28,3 +28,9 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+<!-- AGENT-MEMORY:BEGIN -->
+- Keep all portable visual tokens in src/tokens.css and reusable layout/animation rules in src/styles.css so the design can move to plain HTML/CSS.
+- Use LabProvider for mock profiles, progress and instructor changes; hydrate localStorage in effects to preserve SSR consistency without a backend.
+- Keep lab content and progress rules in browser-safe src/lib/enigma modules, with separate small feature components and TanStack content routes.
+<!-- AGENT-MEMORY:END -->
