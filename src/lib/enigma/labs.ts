@@ -318,6 +318,6 @@ export const labs: Lab[] = [
 ];
 export const levels = ["Fillestar", "Eksplorues", "Ndërtues", "Zhvillues", "Arkitekt", "Legjendë"];
 export const levelThresholds = [0, 30, 70, 120, 180, 250];
-export function levelFor(xp: number) { return Math.max(0, levelThresholds.findLastIndex(n => xp >= n)); }
+export function levelFor(xp: number) { let level = 0; for (let i = 0; i < levelThresholds.length; i += 1) { if (xp >= (levelThresholds[i] ?? Number.POSITIVE_INFINITY)) level = i; } return level; }
 export function stepReward(skipped: boolean) { return skipped ? 0 : 2; }
 export function canOpen(index: number, completed: string[], unlocked: string[]) { return index === 0 || completed.includes(labs[index - 1]?.id ?? "") || unlocked.includes(labs[index]?.id ?? ""); }

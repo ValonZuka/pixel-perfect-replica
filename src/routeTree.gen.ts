@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CertificateRouteImport } from './routes/certificate'
+import { Route as InstructorRouteImport } from './routes/instructor'
 import { Route as PlaygroundRouteImport } from './routes/playground'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as LabLabIdRouteImport } from './routes/lab.$labId'
@@ -17,6 +19,16 @@ import { Route as LabLabIdRouteImport } from './routes/lab.$labId'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CertificateRoute = CertificateRouteImport.update({
+  id: '/certificate',
+  path: '/certificate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstructorRoute = InstructorRouteImport.update({
+  id: '/instructor',
+  path: '/instructor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlaygroundRoute = PlaygroundRouteImport.update({
@@ -37,12 +49,16 @@ const LabLabIdRoute = LabLabIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/certificate': typeof CertificateRoute
+  '/instructor': typeof InstructorRoute
   '/playground': typeof PlaygroundRoute
   '/signin': typeof SigninRoute
   '/lab/$labId': typeof LabLabIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/certificate': typeof CertificateRoute
+  '/instructor': typeof InstructorRoute
   '/playground': typeof PlaygroundRoute
   '/signin': typeof SigninRoute
   '/lab/$labId': typeof LabLabIdRoute
@@ -50,20 +66,43 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/certificate': typeof CertificateRoute
+  '/instructor': typeof InstructorRoute
   '/playground': typeof PlaygroundRoute
   '/signin': typeof SigninRoute
   '/lab/$labId': typeof LabLabIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/playground' | '/signin' | '/lab/$labId'
+  fullPaths:
+    | '/'
+    | '/certificate'
+    | '/instructor'
+    | '/playground'
+    | '/signin'
+    | '/lab/$labId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/playground' | '/signin' | '/lab/$labId'
-  id: '__root__' | '/' | '/playground' | '/signin' | '/lab/$labId'
+  to:
+    | '/'
+    | '/certificate'
+    | '/instructor'
+    | '/playground'
+    | '/signin'
+    | '/lab/$labId'
+  id:
+    | '__root__'
+    | '/'
+    | '/certificate'
+    | '/instructor'
+    | '/playground'
+    | '/signin'
+    | '/lab/$labId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CertificateRoute: typeof CertificateRoute
+  InstructorRoute: typeof InstructorRoute
   PlaygroundRoute: typeof PlaygroundRoute
   SigninRoute: typeof SigninRoute
   LabLabIdRoute: typeof LabLabIdRoute
@@ -76,6 +115,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/certificate': {
+      id: '/certificate'
+      path: '/certificate'
+      fullPath: '/certificate'
+      preLoaderRoute: typeof CertificateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/instructor': {
+      id: '/instructor'
+      path: '/instructor'
+      fullPath: '/instructor'
+      preLoaderRoute: typeof InstructorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/playground': {
@@ -104,6 +157,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CertificateRoute: CertificateRoute,
+  InstructorRoute: InstructorRoute,
   PlaygroundRoute: PlaygroundRoute,
   SigninRoute: SigninRoute,
   LabLabIdRoute: LabLabIdRoute,
