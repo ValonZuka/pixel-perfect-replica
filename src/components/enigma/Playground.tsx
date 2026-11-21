@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { GitBranch, Hash, Pickaxe, Play, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 export async function sha256(text: string) { const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)); return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2,'0')).join(''); }
-async function merkle(txs: string[]) { const leaves = await Promise.all(txs.map(sha256)); const parents = await Promise.all([sha256(leaves[0]+leaves[1]),sha256(leaves[2]+leaves[3])]); return [...leaves,...parents,await sha256(parents[0]+parents[1])]; }
+async function merkle(txs: string[]) { const leaves = await Promise.all(txs.map(sha256)); const parents = await Promise.all([sha256((leaves[0] ?? '')+(leaves[1] ?? '')),sha256((leaves[2] ?? '')+(leaves[3] ?? ''))]); return [...leaves,...parents,await sha256(parents[0]+parents[1])]; }
 export function Playground() {
  const [text,setText]=useState('Enigma Blockchain Lab');const [hash,setHash]=useState(''); const [difficulty,setDifficulty]=useState(2);const [mining,setMining]=useState(false);const [result,setResult]=useState<{nonce:number;hash:string}|null>(null);const running=useRef(false);const [tx,setTx]=useState(['Tx1','Tx2','Tx3','Tx4']);const [nodes,setNodes]=useState<string[]>([]);const [baseline,setBaseline]=useState<string[]>([]);
  useEffect(()=>{let live=true;sha256(text).then(h=>{if(live)setHash(h)});return()=>{live=false}},[text]);
