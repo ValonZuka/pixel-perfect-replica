@@ -1,28 +1,31 @@
 import { useEffect, useState } from "react";
 import { Award, Printer } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { certificateDigest } from "@/lib/enigma/certificate-hash";
 import { Button } from "@/components/ui/button";
 import { labs } from "@/lib/enigma/labs";
 import { useLab } from "@/lib/enigma/store";
 
 export function CertificatePage() {
   const { profile, ready } = useLab();
-  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationUrl, setVerificationUrl] = useState("");
+  const verificationCode = profile.verificationCode ?? "";
   const complete = labs.every((lab) => profile.done.includes(lab.id));
   const approved = Boolean(profile.approvedAt);
+  const digest =
+    profile.completedAt && verificationCode
+      ? certificateDigest({
+          first: profile.first,
+          last: profile.last,
+          completedAt: profile.completedAt,
+          verificationCode,
+        })
+      : "";
 
   useEffect(() => {
-    if (!complete || !profile.approvedAt) return;
-    const input = new TextEncoder().encode(profile.nickname + (profile.approvedAt ?? ""));
-    crypto.subtle.digest("SHA-256", input).then((hash) => {
-      setVerificationCode(
-        Array.from(new Uint8Array(hash))
-          .slice(0, 5)
-          .map((byte) => byte.toString(16).padStart(2, "0"))
-          .join("")
-          .toUpperCase(),
-      );
-    });
-  }, [complete, profile.approvedAt, profile.nickname]);
+    if (verificationCode)
+      setVerificationUrl(new URL(`/verify/${verificationCode}`, window.location.origin).toString());
+  }, [verificationCode]);
 
   if (!ready)
     return (
@@ -109,14 +112,37 @@ export function CertificatePage() {
               <span className="eyebrow">KODI I VERIFIKIMIT</span>
               <strong className="verification-code">{verificationCode || "…"}</strong>
             </div>
-            <div
-              className="certificate-qr"
-              aria-label={`QR placeholder për kodin ${verificationCode || "në përgatitje"}`}
-            >
-              <div className="qr-pattern" />
+            <div className="certificate-qr">
+              {verificationUrl ? (
+                <QRCodeSVG
+                  value={verificationUrl}
+                  size={100}
+                  level="M"
+                  aria-label={`QR për verifikimin e certifikatës ${verificationCode}`}
+                />
+              ) : (
+                <span aria-live="polite">…</span>
+              )}
               <span>VERIFIKO</span>
             </div>
           </div>
+          {digest && (
+            <p className="certificate-digest">
+              <span className="eyebrow">HASH SHA-256</span>
+              <code>{digest}</code>
+            </p>
+          )}
+          {profile.txHash && (
+            <a
+              className="chain-proof-link"
+              href={`${profile.polygonNetwork === "polygon" ? "https://polygonscan.com" : "https://amoy.polygonscan.com"}/tx/${profile.txHash}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Shiko transaksionin e ankoruar në{" "}
+              {profile.polygonNetwork === "polygon" ? "Polygon Mainnet" : "Polygon Amoy"}
+            </a>
+          )}
         </div>
       </article>
     </>

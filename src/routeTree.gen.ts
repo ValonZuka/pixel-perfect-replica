@@ -15,6 +15,7 @@ import { Route as InstructorRouteImport } from './routes/instructor'
 import { Route as PlaygroundRouteImport } from './routes/playground'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as LabLabIdRouteImport } from './routes/lab.$labId'
+import { Route as VerifyCodeRouteImport } from './routes/verify.$code'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,11 @@ const LabLabIdRoute = LabLabIdRouteImport.update({
   path: '/lab/$labId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VerifyCodeRoute = VerifyCodeRouteImport.update({
+  id: '/verify/$code',
+  path: '/verify/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/playground': typeof PlaygroundRoute
   '/signin': typeof SigninRoute
   '/lab/$labId': typeof LabLabIdRoute
+  '/verify/$code': typeof VerifyCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/playground': typeof PlaygroundRoute
   '/signin': typeof SigninRoute
   '/lab/$labId': typeof LabLabIdRoute
+  '/verify/$code': typeof VerifyCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +79,7 @@ export interface FileRoutesById {
   '/playground': typeof PlaygroundRoute
   '/signin': typeof SigninRoute
   '/lab/$labId': typeof LabLabIdRoute
+  '/verify/$code': typeof VerifyCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,6 +90,7 @@ export interface FileRouteTypes {
     | '/playground'
     | '/signin'
     | '/lab/$labId'
+    | '/verify/$code'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -89,6 +99,7 @@ export interface FileRouteTypes {
     | '/playground'
     | '/signin'
     | '/lab/$labId'
+    | '/verify/$code'
   id:
     | '__root__'
     | '/'
@@ -97,6 +108,7 @@ export interface FileRouteTypes {
     | '/playground'
     | '/signin'
     | '/lab/$labId'
+    | '/verify/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -106,6 +118,7 @@ export interface RootRouteChildren {
   PlaygroundRoute: typeof PlaygroundRoute
   SigninRoute: typeof SigninRoute
   LabLabIdRoute: typeof LabLabIdRoute
+  VerifyCodeRoute: typeof VerifyCodeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -152,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LabLabIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/verify/$code': {
+      id: '/verify/$code'
+      path: '/verify/$code'
+      fullPath: '/verify/$code'
+      preLoaderRoute: typeof VerifyCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -162,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlaygroundRoute: PlaygroundRoute,
   SigninRoute: SigninRoute,
   LabLabIdRoute: LabLabIdRoute,
+  VerifyCodeRoute: VerifyCodeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
