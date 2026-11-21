@@ -1,8 +1,17 @@
 import { useState } from "react";
-import { Check, KeyRound, Plus, Trash2, Users } from "lucide-react";
+import { Check, Download, KeyRound, Plus, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLab, skippedCount, type Question } from "@/lib/enigma/store";
 import { labs } from "@/lib/enigma/labs";
+import {
+  anchorStudentCertificate,
+  approveStudentCertificate,
+  exportClassroomBackup,
+  resetStudentPin,
+  unlockStudentSession,
+} from "@/lib/enigma/server";
+import { anchorCertificateOnPolygon, type PolygonNetwork } from "@/lib/enigma/polygon";
+import { certificateDigest } from "@/lib/enigma/certificate-hash";
 
 export function InstructorPanel() {
   const { data, update, updateProfile } = useLab();
@@ -11,6 +20,9 @@ export function InstructorPanel() {
   const [questionText, setQuestionText] = useState("");
   const [answers, setAnswers] = useState(["", ""]);
   const [notice, setNotice] = useState("");
+  const [registryAddress, setRegistryAddress] = useState("");
+  const [network, setNetwork] = useState<PolygonNetwork>("amoy");
+  const [anchoringId, setAnchoringId] = useState("");
 
   if (data.role !== "instructor") {
     return (
@@ -21,32 +33,87 @@ export function InstructorPanel() {
     );
   }
 
-  function openSession(studentId: string) {
-    const session = sessions[studentId] ?? labs[0]?.id;
-    if (!session) return;
-    update((d) => ({
-      ...d,
-      profiles: d.profiles.map((p) =>
-        p.id === studentId
-          ? { ...p, unlocked: p.unlocked.includes(session) ? p.unlocked : [...p.unlocked, session] }
-          : p,
-      ),
-    }));
-    const student = data.profiles.find((p) => p.id === studentId);
-    setNotice(
-      `Seanca ${labs.find((item) => item.id === session)?.s ?? ""} u hap për ${student?.first ?? "studentin"}.`,
-    );
+  async function openSession(studentId: string) {
+    const labId = sessions[studentId] ?? labs[0]?.id;
+    if (!labId) return;
+    try {
+      const updated = await unlockStudentSession({ data: { id: studentId, labId } });
+      updateProfile(() => updated, studentId);
+      const student = data.profiles.find((p) => p.id === studentId);
+      setNotice(
+        `Seanca ${labs.find((item) => item.id === labId)?.s ?? ""} u hap për ${student?.first ?? "studentin"}.`,
+      );
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : "Seanca nuk mund të hapej.");
+    }
   }
 
-  function resetPin(id: string) {
-    const pin = String(Math.floor(1000 + Math.random() * 9000));
-    updateProfile((p) => ({ ...p, pin }), id);
-    const student = data.profiles.find((p) => p.id === id);
-    setNotice(`PIN-i i ri për ${student?.first ?? "studentin"}: ${pin}`);
+  async function resetPin(id: string) {
+    try {
+      const { pin } = await resetStudentPin({ data: { id } });
+      const student = data.profiles.find((p) => p.id === id);
+      setNotice(`PIN-i i ri për ${student?.first ?? "studentin"}: ${pin}`);
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : "PIN-i nuk mund të rivendosej.");
+    }
   }
 
-  function approve(id: string) {
-    updateProfile((p) => ({ ...p, approvedAt: new Date().toISOString() }), id);
+  async function approve(id: string) {
+    try {
+      const updated = await approveStudentCertificate({ data: { id } });
+      updateProfile(() => updated, id);
+      setNotice("Certifikata u miratua.");
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : "Certifikata nuk mund të miratohej.");
+    }
+  }
+
+  async function anchor(studentId: string) {
+    const student = data.profiles.find((profile) => profile.id === studentId);
+    if (!student?.verificationCode || !student.completedAt || !registryAddress) return;
+    setAnchoringId(studentId);
+    try {
+      const txHash = await anchorCertificateOnPolygon({
+        network,
+        registryAddress,
+        certificateHash: certificateDigest({
+          first: student.first,
+          last: student.last,
+          completedAt: student.completedAt,
+          verificationCode: student.verificationCode,
+        }),
+        studentId: student.id,
+        completedAt: student.completedAt,
+      });
+      const updated = await anchorStudentCertificate({
+        data: { id: studentId, txHash, contractAddress: registryAddress, network },
+      });
+      updateProfile(() => updated, studentId);
+      setNotice(
+        `Certifikata e ${student.first} u ankorua në ${network === "amoy" ? "Polygon Amoy" : "Polygon Mainnet"}.`,
+      );
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : "Ankorimi nuk mund të përfundohej.");
+    } finally {
+      setAnchoringId("");
+    }
+  }
+
+  async function exportBackup() {
+    try {
+      const backup = await exportClassroomBackup();
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `enigma-classroom-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setNotice("Kopja rezervë u shkarkua.");
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : "Kopja rezervë nuk mund të eksportohej.");
+    }
   }
 
   function addQuestion() {
@@ -67,8 +134,13 @@ export function InstructorPanel() {
           <h1>Paneli i ligjëruesit</h1>
           <p>Mbështet studentët, hap seanca dhe menaxho pyetjet e kuizeve.</p>
         </div>
-        <div className="cohort">
-          <Users /> {data.profiles.length} studentë
+        <div className="flex items-center gap-2">
+          <div className="cohort">
+            <Users /> {data.profiles.length} studentë
+          </div>
+          <Button variant="outline" size="sm" onClick={() => void exportBackup()}>
+            <Download data-icon="inline-start" /> Eksporto JSON
+          </Button>
         </div>
       </div>
       {notice && (
@@ -85,6 +157,32 @@ export function InstructorPanel() {
             </h2>
             <p>Progresi, hapat e kaluar dhe miratimet e certifikatave.</p>
           </div>
+        </div>
+        <div className="question-editor">
+          <label htmlFor="polygon-network">Rrjeti Polygon</label>
+          <select
+            id="polygon-network"
+            value={network}
+            onChange={(event) => setNetwork(event.target.value as PolygonNetwork)}
+          >
+            <option value="amoy">Polygon Amoy · Testnet</option>
+            <option value="polygon">Polygon · Mainnet</option>
+          </select>
+          <label htmlFor="polygon-registry-address">
+            Adresa e kontratës · {network === "amoy" ? "Polygon Amoy" : "Polygon Mainnet"}
+          </label>
+          <input
+            id="polygon-registry-address"
+            value={registryAddress}
+            onChange={(event) => setRegistryAddress(event.target.value.trim())}
+            placeholder="0x…"
+            inputMode="text"
+            autoComplete="off"
+          />
+          <p className="notice">
+            Vendos adresën e CertificateRegistry të publikuar në rrjetin e zgjedhur. Transaksioni
+            nënshkruhet me MetaMask.
+          </p>
         </div>
         <div className="instructor-table-wrap">
           <table className="instructor-table">
@@ -108,7 +206,9 @@ export function InstructorPanel() {
                     <small>@{student.nickname}</small>
                   </td>
                   <td>{student.xp} XP</td>
-                  <td>{student.done.length}/7</td>
+                  <td>
+                    {student.done.length}/{labs.length}
+                  </td>
                   <td>
                     <span className="skipped-count">{skippedCount(student)}</span>
                   </td>
@@ -147,10 +247,32 @@ export function InstructorPanel() {
                       <Button
                         size="sm"
                         onClick={() => approve(student.id)}
-                        disabled={Boolean(student.approvedAt)}
+                        disabled={
+                          Boolean(student.approvedAt) ||
+                          !labs.every((item) => student.done.includes(item.id))
+                        }
                       >
                         {student.approvedAt ? <Check /> : null}
                         {student.approvedAt ? "Aprovuar" : "Aprovo certifikatën"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void anchor(student.id)}
+                        disabled={
+                          !student.approvedAt ||
+                          !student.verificationCode ||
+                          !student.completedAt ||
+                          !registryAddress ||
+                          Boolean(student.txHash) ||
+                          anchoringId === student.id
+                        }
+                      >
+                        {anchoringId === student.id
+                          ? "Duke dërguar…"
+                          : student.txHash
+                            ? "Në Polygon"
+                            : "Ankoro"}
                       </Button>
                     </div>
                   </td>

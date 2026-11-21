@@ -1,10 +1,193 @@
-import { useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
-import { ArrowRight, Delete } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useLab, type Profile } from '@/lib/enigma/store';
-import { Character, characters } from './Character';
-export function SignIn(){const{data,update}=useLab();const navigate=useNavigate();const[mode,setMode]=useState<'create'|'login'>('create');const[first,setFirst]=useState('');const[last,setLast]=useState('');const[nickname,setNickname]=useState('');const[pin,setPin]=useState('');const[character,setCharacter]=useState(0);const[error,setError]=useState('');
- function submit(e:React.FormEvent){e.preventDefault();setError('');if(!/^\d{4}$/.test(pin)){setError('PIN-i duhet të ketë saktësisht 4 shifra.');return}if(mode==='login'){const p=data.profiles.find(p=>p.nickname.toLowerCase()===nickname.toLowerCase()&&p.pin===pin);if(!p){setError('Pseudonimi ose PIN-i nuk është i saktë.');return}update(d=>({...d,active:p.id,role:'student'}));}else{if(data.profiles.some(p=>p.nickname.toLowerCase()===nickname.toLowerCase())){setError('Ky pseudonim është përdorur. Zgjidh një tjetër.');return}const p:Profile={id:crypto.randomUUID(),first:first.trim(),last:last.trim(),nickname:nickname.trim(),pin,character,xp:0,done:[],steps:{},unlocked:[],started:{},quizzes:{}};update(d=>({...d,profiles:[...d.profiles,p],active:p.id,role:'student'}));}navigate({to:'/'});}
- return <div className="profile-form-wrap"><div className="page-heading"><div><h1>Çdo aventurë ka një fillim.</h1><p>Partneri yt dhe blloku yt i parë po të presin.</p></div></div><form className="profile-form" onSubmit={submit}><div className="form-tabs"><Button type="button" variant="ghost" className={mode==='create'?'selected':''} onClick={()=>{setMode('create');setError('')}}>Krijo profil</Button><Button type="button" variant="ghost" className={mode==='login'?'selected':''} onClick={()=>{setMode('login');setError('')}}>Hyr</Button></div><div className="form-grid">{mode==='create'&&<><label>Emri<input required value={first} onChange={e=>setFirst(e.target.value)} autoComplete="given-name"/></label><label>Mbiemri<input required value={last} onChange={e=>setLast(e.target.value)} autoComplete="family-name"/></label></>}<label className="form-full">Pseudonimi<input required value={nickname} onChange={e=>setNickname(e.target.value)} autoComplete="username" maxLength={24}/></label>{mode==='create'&&<div className="form-full"><label>Zgjidh partnerin tënd</label><div className="character-picker">{characters.map((c,i)=><Button key={c} type="button" variant="outline" aria-pressed={character===i} className={character===i?'selected':''} onClick={()=>setCharacter(i)}><Character kind={i}/><span>{c}</span></Button>)}</div></div>}<div className="form-full"><label className="text-center">PIN-i yt · 4 shifra</label><input className="pin-input" aria-label="PIN" type="password" inputMode="numeric" maxLength={4} required pattern="[0-9]{4}" value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,''))} autoComplete={mode==='create'?'new-password':'current-password'}/><div className="pin-pad">{['1','2','3','4','5','6','7','8','9','C','0','delete'].map(n=><Button key={n} type="button" variant="secondary" aria-label={n==='delete'?'Fshi shifrën':n==='C'?'Pastro PIN-in':n} onClick={()=>setPin(n==='C'?'':n==='delete'?pin.slice(0,-1):(pin+n).slice(0,4))}>{n==='delete'?<Delete/>:n}</Button>)}</div></div></div>{error&&<p role="alert" className="form-error">{error}</p>}<Button className="submit-profile" type="submit">{mode==='create'?'Nis aventurën':'Hyr në laborator'}<ArrowRight/></Button><p className="notice">Profil lokal demonstrimi. Mos përdor PIN-in e bankës ose të dhëna sensitive.</p></form><div className="tool-card mt-5"><span className="eyebrow">PROFILE DEMONSTRIMI</span><div className="flex gap-2 mt-3 flex-wrap">{data.profiles.slice(0,3).map(p=><Button key={p.id} variant="outline" onClick={()=>{update(d=>({...d,active:p.id}));navigate({to:'/'})}}><Character kind={p.character} size="small"/>{p.first}</Button>)}</div></div></div>;
+import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { ArrowRight, Delete } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useLab } from "@/lib/enigma/store";
+import { createStudent, loginStudent } from "@/lib/enigma/server";
+import { Character, characters } from "./Character";
+export function SignIn() {
+  const { update } = useLab();
+  const navigate = useNavigate();
+  const [mode, setMode] = useState<"create" | "login">("create");
+  const [first, setFirst] = useState("");
+  const [last, setLast] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [pin, setPin] = useState("");
+  const [character, setCharacter] = useState(0);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    if (!/^\d{4}$/.test(pin)) {
+      setError("PIN-i duhet të ketë saktësisht 4 shifra.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const profile =
+        mode === "login"
+          ? await loginStudent({ data: { nickname, pin } })
+          : await createStudent({ data: { first, last, nickname, pin, character } });
+      update((current) => ({
+        ...current,
+        profiles: [profile],
+        active: profile.id,
+        role: "student",
+      }));
+      navigate({ to: "/" });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Nuk mundëm të përfundojmë hyrjen.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="profile-form-wrap">
+      <div className="page-heading">
+        <div>
+          <h1>Çdo aventurë ka një fillim.</h1>
+          <p>Partneri yt dhe blloku yt i parë po të presin.</p>
+        </div>
+      </div>
+      <form className="profile-form" onSubmit={submit}>
+        <div className="form-tabs">
+          <Button
+            type="button"
+            variant="ghost"
+            className={mode === "create" ? "selected" : ""}
+            onClick={() => {
+              setMode("create");
+              setError("");
+            }}
+          >
+            Krijo profil
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className={mode === "login" ? "selected" : ""}
+            onClick={() => {
+              setMode("login");
+              setError("");
+            }}
+          >
+            Hyr
+          </Button>
+        </div>
+        <div className="form-grid">
+          {mode === "create" && (
+            <>
+              <label>
+                Emri
+                <input
+                  required
+                  value={first}
+                  onChange={(event) => setFirst(event.target.value)}
+                  autoComplete="given-name"
+                  maxLength={50}
+                />
+              </label>
+              <label>
+                Mbiemri
+                <input
+                  required
+                  value={last}
+                  onChange={(event) => setLast(event.target.value)}
+                  autoComplete="family-name"
+                  maxLength={50}
+                />
+              </label>
+            </>
+          )}
+          <label className="form-full">
+            Pseudonimi
+            <input
+              required
+              value={nickname}
+              onChange={(event) => setNickname(event.target.value)}
+              autoComplete="username"
+              maxLength={24}
+              pattern="[A-Za-z0-9_-]{2,24}"
+            />
+          </label>
+          {mode === "create" && (
+            <div className="form-full">
+              <label>Zgjidh partnerin tënd</label>
+              <div className="character-picker">
+                {characters.map((name, index) => (
+                  <Button
+                    key={name}
+                    type="button"
+                    variant="outline"
+                    aria-pressed={character === index}
+                    className={character === index ? "selected" : ""}
+                    onClick={() => setCharacter(index)}
+                  >
+                    <Character kind={index} decorative />
+                    <span>{name}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="form-full">
+            <label className="text-center" htmlFor="student-pin">
+              PIN-i yt · 4 shifra
+            </label>
+            <input
+              id="student-pin"
+              className="pin-input"
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              required
+              pattern="[0-9]{4}"
+              value={pin}
+              onChange={(event) => setPin(event.target.value.replace(/\D/g, ""))}
+              autoComplete={mode === "create" ? "new-password" : "current-password"}
+            />
+            <div className="pin-pad">
+              {["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "delete"].map((number) => (
+                <Button
+                  key={number}
+                  type="button"
+                  variant="secondary"
+                  aria-label={
+                    number === "delete" ? "Fshi shifrën" : number === "C" ? "Pastro PIN-in" : number
+                  }
+                  onClick={() =>
+                    setPin(
+                      number === "C"
+                        ? ""
+                        : number === "delete"
+                          ? pin.slice(0, -1)
+                          : (pin + number).slice(0, 4),
+                    )
+                  }
+                >
+                  {number === "delete" ? <Delete /> : number}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+        {error && (
+          <p role="alert" className="form-error">
+            {error}
+          </p>
+        )}
+        <Button className="submit-profile" type="submit" disabled={busy}>
+          {busy ? "Duke u ruajtur…" : mode === "create" ? "Nis aventurën" : "Hyr në laborator"}
+          <ArrowRight />
+        </Button>
+        <p className="notice">
+          PIN-i ruhet si hash i kriptuar dhe nuk mund të rikthehet. Zgjidh një kod që mund ta mbash
+          mend.
+        </p>
+      </form>
+    </div>
+  );
 }
